@@ -1,177 +1,162 @@
 import random
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
-# The function we want to maximize
-def f(x):
-    return -(x - 3)**2 + 9
+# objective function to maximize
+def objective(val):
+    return -(val - 3)**2 + 9
 
 
-# -------------------------------------------------------
-# (a) Simple Hill Climbing
-# -------------------------------------------------------
-def simple_hill_climbing(start=0.0, step=0.1):
-    x = start
-    path = [x]
+# ==========================================
+# PART A - Simple Hill Climbing
+# ==========================================
+def run_simple_hc(x0=0.0, delta=0.1):
+    current = x0
+    visited = [current]
 
-    print("=== Simple Hill Climbing ===")
-    print(f"Start: x = {x:.4f}, f(x) = {f(x):.4f}")
+    print("-------------------------------")
+    print("  Simple Hill Climbing")
+    print("-------------------------------")
+    print(f"  Initial point -> x={current:.3f}  f={objective(current):.3f}")
 
+    step_count = 0
     while True:
-        # Check right neighbor first, then left
-        moved = False
-        for neighbor in [x + step, x - step]:
-            if f(neighbor) > f(x):
-                x = neighbor
-                path.append(x)
-                print(f"  Moved to x = {x:.4f}, f(x) = {f(x):.4f}")
-                moved = True
-                break  # simple hill climbing: take the FIRST improvement
+        next_right = current + delta
+        next_left  = current - delta
 
-        if not moved:
-            print(f"No improvement found. Stopping.")
+        # try right first, then left - take first that's better
+        improved = False
+        for candidate in [next_right, next_left]:
+            if objective(candidate) > objective(current):
+                current = candidate
+                visited.append(current)
+                step_count += 1
+                print(f"  step {step_count} -> x={current:.3f}  f={objective(current):.3f}")
+                improved = True
+                break
+
+        if not improved:
+            print(f"  Stuck at local max. Exiting loop.")
             break
 
-    print(f"Result: x = {x:.4f}, f(x) = {f(x):.4f}\n")
-    return x, path
+    print(f"  Final answer: x={current:.3f}, f(x)={objective(current):.3f}\n")
+    return current, visited
 
 
-# -------------------------------------------------------
-# (b) Steepest-Ascent Hill Climbing
-# -------------------------------------------------------
-def steepest_ascent_hill_climbing(start=0.0, step=0.1):
-    x = start
-    path = [x]
+# ==========================================
+# PART B - Steepest Ascent Hill Climbing
+# ==========================================
+def run_steepest_hc(x0=0.0, delta=0.1):
+    current = x0
+    visited = [current]
 
     while True:
-        left  = x - step
-        right = x + step
+        r = current + delta
+        l = current - delta
 
-        # Pick the better of the two neighbors
-        if f(right) >= f(left):
-            best_neighbor = right
+        # compare both neighbors and take the best one
+        best = r if objective(r) >= objective(l) else l
+
+        if objective(best) > objective(current):
+            current = best
+            visited.append(current)
         else:
-            best_neighbor = left
+            break   # no better neighbor exists
 
-        # Only move if the best neighbor is actually better
-        if f(best_neighbor) > f(x):
-            x = best_neighbor
-            path.append(x)
-        else:
-            break  # neither neighbor is better, we're at a peak
-
-    return x, path
+    return current, visited
 
 
-# -------------------------------------------------------
-# (c) Random-Restart Hill Climbing
-# -------------------------------------------------------
-def random_restart_hill_climbing(num_restarts=10, step=0.1, low=-10, high=10):
-    print("=== Random-Restart Hill Climbing ===")
+# ==========================================
+# PART C - Random Restart
+# ==========================================
+def run_random_restart(n=10, delta=0.1, lower=-10, upper=10):
+    print("-------------------------------")
+    print("  Random Restart Hill Climbing")
+    print("-------------------------------")
 
-    best_x = None
-    best_val = float('-inf')
-    best_start = None
-    all_paths = []
-    all_starts = []
+    champion_x     = None
+    champion_val   = float('-inf')
+    champion_start = None
 
-    for i in range(num_restarts):
-        start = random.uniform(low, high)
-        all_starts.append(start)
+    trajectories = []
+    starting_pts = []
 
-        result_x, path = steepest_ascent_hill_climbing(start=start, step=step)
-        all_paths.append(path)
+    for run in range(n):
+        s = random.uniform(lower, upper)
+        starting_pts.append(s)
 
-        val = f(result_x)
-        print(f"  Restart {i+1}: start = {start:.4f} -> result x = {result_x:.4f}, f(x) = {val:.4f}")
+        peak_x, traj = run_steepest_hc(x0=s, delta=delta)
+        trajectories.append(traj)
 
-        if val > best_val:
-            best_val = val
-            best_x = result_x
-            best_start = start
+        score = objective(peak_x)
+        print(f"  Run {run+1:02d} | start={s:7.3f} | peak x={peak_x:.3f} | f={score:.4f}")
 
-    print(f"\nBest solution found: x = {best_x:.4f}, f(x) = {best_val:.4f}")
-    print(f"Best starting point: {best_start:.4f}\n")
+        if score > champion_val:
+            champion_val   = score
+            champion_x     = peak_x
+            champion_start = s
 
-    return best_x, best_val, best_start, all_paths, all_starts
+    print(f"\n  >> Overall best: x={champion_x:.3f}, f(x)={champion_val:.4f}")
+    print(f"  >> Came from start: {champion_start:.3f}\n")
+
+    return champion_x, champion_val, champion_start, trajectories, starting_pts
 
 
-# -------------------------------------------------------
-# (d) Plotting
-# -------------------------------------------------------
-def plot_results(all_paths, all_starts):
-    # Draw the actual curve of f(x)
-    x_vals = np.linspace(-10, 10, 400)
-    y_vals = [f(x) for x in x_vals]
+# ==========================================
+# PART D - Plot
+# ==========================================
+def draw_plot(trajectories, starting_pts):
+    xs = np.linspace(-10, 10, 500)
+    ys = [objective(x) for x in xs]
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(x_vals, y_vals, 'b-', linewidth=2, label='f(x) = -(x-3)² + 9')
+    fig, ax = plt.subplots(figsize=(11, 5))
+    ax.plot(xs, ys, color='black', linewidth=2.5, label='f(x) = -(x-3)² + 9', zorder=2)
 
-    # Plot the trajectory for each restart
-    colors = plt.cm.tab10.colors  # 10 distinct colors
-    for i, path in enumerate(all_paths):
-        path_y = [f(x) for x in path]
-        color = colors[i % len(colors)]
-        plt.plot(path, path_y, 'o--', color=color,
-                 markersize=5, linewidth=1,
-                 label=f'Restart {i+1} (start={all_starts[i]:.2f})')
-        # Mark starting point
-        plt.plot(path[0], f(path[0]), 's', color=color, markersize=8)
-        # Mark ending point
-        plt.plot(path[-1], f(path[-1]), '*', color=color, markersize=12)
+    cmap = plt.cm.Set1.colors
+    for i, traj in enumerate(trajectories):
+        ty = [objective(x) for x in traj]
+        col = cmap[i % len(cmap)]
 
-    plt.title('Random-Restart Hill Climbing on f(x) = -(x-3)² + 9')
-    plt.xlabel('x')
-    plt.ylabel('f(x)')
-    plt.legend(loc='upper left', fontsize=7)
-    plt.grid(True)
+        ax.plot(traj, ty, linestyle='dashed', linewidth=1.2,
+                color=col, alpha=0.8,
+                label=f'Run {i+1} (s={starting_pts[i]:.1f})')
+
+        # triangle marker at start
+        ax.plot(traj[0], objective(traj[0]), '^', color=col, markersize=7)
+        # circle marker at end
+        ax.plot(traj[-1], objective(traj[-1]), 'o', color=col, markersize=9)
+
+    ax.set_title('Hill Climbing — Random Restart Trajectories', fontsize=13, pad=12)
+    ax.set_xlabel('x value', fontsize=11)
+    ax.set_ylabel('f(x) value', fontsize=11)
+    ax.legend(fontsize=7, loc='lower right', ncol=2)
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.set_ylim(-170, 20)
+
     plt.tight_layout()
     plt.savefig('hill_climbing_plot.png', dpi=150)
     plt.show()
-    print("Plot saved as hill_climbing_plot.png")
+    print("Plot saved -> hill_climbing_plot.png")
 
 
-# -------------------------------------------------------
-# (e) Short Discussion
-# -------------------------------------------------------
-def print_discussion():
-    print("=== Discussion ===")
-    print("""
-Does random restart always help?
-  Not necessarily. For a simple unimodal function like f(x) = -(x-3)^2 + 9,
-  there is only one peak, so every restart will end up at the same maximum.
-  Random restart is most useful when the search space has many local maxima,
-  where a single run might get stuck in a suboptimal peak.
-
-When might random restart be wasteful?
-  - On smooth unimodal functions (like this one), every restart gives the
-    same answer, so extra restarts just waste computation.
-  - If the function evaluations are expensive (e.g., running a simulation),
-    many restarts can be very costly.
-  - When the search space is huge, random starts may still land in bad
-    regions and never find the true global optimum within a limited budget.
-""")
-
-
-# -------------------------------------------------------
-# Main
-# -------------------------------------------------------
+# ==========================================
+# MAIN
+# ==========================================
 if __name__ == "__main__":
-    random.seed(42)  # for reproducibility
+    random.seed(7)
 
-    # (a) Simple Hill Climbing
-    simple_hill_climbing(start=0.0, step=0.1)
+    # part a
+    run_simple_hc(x0=0.0, delta=0.1)
 
-    # (b) Steepest-Ascent (single run for demo)
-    print("=== Steepest-Ascent Hill Climbing (single run from x=0) ===")
-    result, path = steepest_ascent_hill_climbing(start=0.0, step=0.1)
-    print(f"Result: x = {result:.4f}, f(x) = {f(result):.4f}\n")
+    # part b - single demo run
+    print("-------------------------------")
+    print("  Steepest Ascent (single run)")
+    print("-------------------------------")
+    px, pt = run_steepest_hc(x0=0.0, delta=0.1)
+    print(f"  Result: x={px:.3f}, f(x)={objective(px):.3f}\n")
 
-    # (c) Random-Restart
-    best_x, best_val, best_start, all_paths, all_starts = random_restart_hill_climbing()
+    # part c
+    bx, bv, bs, all_trajs, all_starts = run_random_restart(n=10)
 
-    # (d) Plot
-    plot_results(all_paths, all_starts)
-
-    # (e) Discussion
-    print_discussion()
+    # part d
+    draw_plot(all_trajs, all_starts)
