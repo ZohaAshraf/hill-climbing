@@ -1,3 +1,5 @@
+
+
 # Hill Climbing Algorithms in Python
 
 A Python implementation of Hill Climbing search algorithms applied to a simple mathematical function. Built as part of an AI/search algorithms assignment.
@@ -39,13 +41,6 @@ The true maximum is at **x = 3**, where **f(x) = 9**.
 - Saved as `hill_climbing_plot.png`
 
 ---
-
-## Output Preview
-
-![Hill Climbing Plot](hill_climbing_plot.png)
-
----
-
 ## How to Run
 
 **1. Clone the repository**
